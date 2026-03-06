@@ -8,9 +8,18 @@ const workerSchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
     skills: {
       type: [String],
       default: [],
+    },
+    serviceDescription: {
+      type: String,
+      default: "",
     },
     location: {
       type: {
