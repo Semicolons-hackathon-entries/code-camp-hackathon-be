@@ -1,0 +1,279 @@
+{
+  "info": {
+    "name": "Worker Reputation Profile",
+    "description": "Test the GET /workers/:id/reputation endpoint.\n\nRun requests IN ORDER (top to bottom). Each step auto-saves tokens and IDs to collection variables.\n\nUses existing accounts: gab.client@example.com (Client) and gab.electrician@example.com (Worker).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000/api" },
+    { "key": "clientToken", "value": "" },
+    { "key": "workerToken", "value": "" },
+    { "key": "workerId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "1. Login Client",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"gab.client@example.com\",\n  \"password\": \"Test1234!\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const res = pm.response.json();",
+              "pm.test('Client login succeeds', () => {",
+              "    pm.response.to.have.status(200);",
+              "    pm.expect(res.success).to.be.true;",
+              "    pm.expect(res.data.role).to.eql('Client');",
+              "});",
+              "if (res.data && res.data.token) {",
+              "    pm.collectionVariables.set('clientToken', res.data.token);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Login Worker",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"gab.electrician@example.com\",\n  \"password\": \"Test1234!\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const res = pm.response.json();",
+              "pm.test('Worker login succeeds', () => {",
+              "    pm.response.to.have.status(200);",
+              "    pm.expect(res.success).to.be.true;",
+              "    pm.expect(res.data.role).to.eql('Worker');",
+              "});",
+              "if (res.data && res.data.token) {",
+              "    pm.collectionVariables.set('workerToken', res.data.token);",
+              "}",
+              "if (res.data && res.data.workerId) {",
+              "    pm.collectionVariables.set('workerId', res.data.workerId);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Get Worker Profile (fetch workerId)",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{workerToken}}" }
+        ],
+        "url": { "raw": "{{baseUrl}}/workers/profile", "host": ["{{baseUrl}}"], "path": ["workers", "profile"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const res = pm.response.json();",
+              "pm.test('Worker profile fetched', () => {",
+              "    pm.response.to.have.status(200);",
+              "    pm.expect(res.success).to.be.true;",
+              "    pm.expect(res.data._id).to.be.a('string');",
+              "});",
+              "if (res.data && res.data._id) {",
+              "    pm.collectionVariables.set('workerId', res.data._id);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Get Worker Reputation Profile (public - no auth)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/workers/{{workerId}}/reputation", "host": ["{{baseUrl}}"], "path": ["workers", "{{workerId}}", "reputation"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const res = pm.response.json();",
+              "pm.test('Reputation profile returned successfully', () => {",
+              "    pm.response.to.have.status(200);",
+              "    pm.expect(res.success).to.be.true;",
+              "});",
+              "pm.test('Has worker name', () => {",
+              "    pm.expect(res.data.name).to.be.a('string');",
+              "    pm.expect(res.data.name.length).to.be.above(0);",
+              "});",
+              "pm.test('Has rating (0-5)', () => {",
+              "    pm.expect(res.data.rating).to.be.a('number');",
+              "    pm.expect(res.data.rating).to.be.at.least(0);",
+              "    pm.expect(res.data.rating).to.be.at.most(5);",
+              "});",
+              "pm.test('Has totalReviews count', () => {",
+              "    pm.expect(res.data.totalReviews).to.be.a('number');",
+              "    pm.expect(res.data.totalReviews).to.be.at.least(0);",
+              "});",
+              "pm.test('Has completedJobs count', () => {",
+              "    pm.expect(res.data.completedJobs).to.be.a('number');",
+              "    pm.expect(res.data.completedJobs).to.be.at.least(0);",
+              "});",
+              "pm.test('Has skills array', () => {",
+              "    pm.expect(res.data.skills).to.be.an('array');",
+              "});",
+              "pm.test('Has location', () => {",
+              "    pm.expect(res.data.location).to.exist;",
+              "});",
+              "pm.test('Has services array', () => {",
+              "    pm.expect(res.data.services).to.be.an('array');",
+              "});",
+              "pm.test('Has availability status', () => {",
+              "    pm.expect(res.data.isAvailable).to.be.a('boolean');",
+              "});",
+              "pm.test('Has user info', () => {",
+              "    pm.expect(res.data.user).to.exist;",
+              "    pm.expect(res.data.user.email).to.be.a('string');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Get Worker Reputation Profile (with client auth token)",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{clientToken}}" }
+        ],
+        "url": { "raw": "{{baseUrl}}/workers/{{workerId}}/reputation", "host": ["{{baseUrl}}"], "path": ["workers", "{{workerId}}", "reputation"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const res = pm.response.json();",
+              "pm.test('Works with auth token too', () => {",
+              "    pm.response.to.have.status(200);",
+              "    pm.expect(res.success).to.be.true;",
+              "    pm.expect(res.data.name).to.be.a('string');",
+              "    pm.expect(res.data.rating).to.be.a('number');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Get Reputation - Invalid Worker ID (404)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/workers/000000000000000000000000/reputation", "host": ["{{baseUrl}}"], "path": ["workers", "000000000000000000000000", "reputation"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 404 for nonexistent worker', () => {",
+              "    pm.response.to.have.status(404);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Get Reputation - Malformed ID (400)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/workers/not-a-valid-id/reputation", "host": ["{{baseUrl}}"], "path": ["workers", "not-a-valid-id", "reputation"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 400 for malformed worker ID', () => {",
+              "    pm.response.to.have.status(400);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Existing GET /workers/:id still works (regression)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/workers/{{workerId}}", "host": ["{{baseUrl}}"], "path": ["workers", "{{workerId}}"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const res = pm.response.json();",
+              "pm.test('Original getById endpoint unaffected', () => {",
+              "    pm.response.to.have.status(200);",
+              "    pm.expect(res.success).to.be.true;",
+              "    pm.expect(res.data.name).to.be.a('string');",
+              "    pm.expect(res.data.skills).to.be.an('array');",
+              "});",
+              "pm.test('Does NOT have reputation-specific fields', () => {",
+              "    pm.expect(res.data).to.not.have.property('totalReviews');",
+              "    pm.expect(res.data).to.not.have.property('completedJobs');",
+              "    pm.expect(res.data).to.not.have.property('services');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "9. Existing GET /workers still works (regression)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/workers", "host": ["{{baseUrl}}"], "path": ["workers"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const res = pm.response.json();",
+              "pm.test('Original getAll endpoint unaffected', () => {",
+              "    pm.response.to.have.status(200);",
+              "    pm.expect(res.success).to.be.true;",
+              "    pm.expect(res.data).to.be.an('array');",
+              "});"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -117,4 +117,14 @@ const updateLocation = async (req, res, next) => {
   }
 };
 
-module.exports = { createProfile, getMyProfile, updateProfile, getNearby, getAll, getById, updateLocation };
+const getReputationProfile = async (req, res, next) => {
+  try {
+    const profile = await workerService.getWorkerReputationProfile(req.params.id);
+    res.status(200).json({ success: true, data: profile });
+  } catch (error) {
+    if (error.statusCode) res.status(error.statusCode);
+    next(error);
+  }
+};
+
+module.exports = { createProfile, getMyProfile, updateProfile, getNearby, getAll, getById, getReputationProfile, updateLocation };

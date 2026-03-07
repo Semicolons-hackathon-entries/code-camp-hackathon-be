@@ -19,12 +19,11 @@ router.post("/auth/login", authController.login);
 router.get("/auth/profile", protect, authController.getProfile);
 router.post("/auth/onboarding", protect, authController.completeOnboarding);
 
-// Worker routes (public)
+// Worker routes (public - static paths first)
 router.get("/workers", workerController.getAll);
 router.get("/workers/nearby", workerController.getNearby);
-router.get("/workers/:id", workerController.getById);
 
-// Worker routes (protected - Worker role only)
+// Worker routes (protected - static paths before parameterized)
 router.post(
   "/workers/profile",
   protect,
@@ -49,6 +48,10 @@ router.patch(
   authorize("Worker"),
   workerController.updateLocation
 );
+
+// Worker routes (public - parameterized paths last)
+router.get("/workers/:id/reputation", workerController.getReputationProfile);
+router.get("/workers/:id", workerController.getById);
 
 // Job routes (protected)
 router.post("/jobs", protect, authorize("Client"), jobController.createJob);
