@@ -74,7 +74,7 @@ const getJobsForWorker = async (userId) => {
   }
 
   return Job.find({ workerId: worker._id })
-    .populate("clientId", "email")
+    .populate("clientId", "email name")
     .populate("serviceId", "title price")
     .sort({ createdAt: -1 });
 };
@@ -198,7 +198,7 @@ const getPendingJobRequests = async (userId) => {
   }
 
   const jobs = await Job.find({ workerId: worker._id, status: "Pending" })
-    .populate("clientId", "email")
+    .populate("clientId", "email name")
     .populate("serviceId", "title category price")
     .sort({ createdAt: -1 });
 

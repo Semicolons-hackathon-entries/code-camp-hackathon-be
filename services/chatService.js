@@ -9,7 +9,9 @@ const validateJobParticipant = async (jobId, userId) => {
   }
 
   const isClient = job.clientId.toString() === userId.toString();
-  const isWorker = job.workerId.userId.toString() === userId.toString();
+  const isWorker = job.workerId && job.workerId.userId
+    ? job.workerId.userId.toString() === userId.toString()
+    : false;
 
   if (!isClient && !isWorker) {
     throw Object.assign(new Error("Not a participant in this job"), {
@@ -17,7 +19,7 @@ const validateJobParticipant = async (jobId, userId) => {
     });
   }
 
-  if (!["Pending", "Accepted"].includes(job.status)) {
+  if (["Declined", "Completed", "ClientConfirmed"].includes(job.status)) {
     throw Object.assign(new Error("Chat is only available for active jobs"), {
       statusCode: 400,
     });
@@ -32,8 +34,14 @@ const sendMessage = async (jobId, senderId, content) => {
   // Figure out the receiver
   const isClient = job.clientId.toString() === senderId.toString();
   const receiverId = isClient
-    ? job.workerId.userId
+    ? (job.workerId && job.workerId.userId ? job.workerId.userId : null)
     : job.clientId;
+
+  if (!receiverId) {
+    throw Object.assign(new Error("No worker assigned to this job yet"), {
+      statusCode: 400,
+    });
+  }
 
   const message = await Message.create({
     jobId,
