@@ -32,7 +32,7 @@ const signup = async ({ email, password, role }) => {
     _id: user._id,
     email: user.email,
     role: user.role,
-    onboardingComplete: user.onboardingComplete,
+    onboardingComplete: user.onboardingComplete ?? false,
     token: generateToken(user._id),
   };
 };
@@ -62,8 +62,8 @@ const login = async ({ email, password }) => {
     _id: user._id,
     email: user.email,
     role: user.role,
-    name: user.name,
-    onboardingComplete: user.onboardingComplete,
+    name: user.name || null,
+    onboardingComplete: user.onboardingComplete ?? false,
     workerId: workerProfile ? workerProfile._id : null,
     token: generateToken(user._id),
   };
@@ -76,6 +76,7 @@ const getProfile = async (userId) => {
   }
 
   const result = user.toObject();
+  result.onboardingComplete = result.onboardingComplete ?? false;
 
   // Attach worker profile ID if applicable
   if (user.role === "Worker") {
