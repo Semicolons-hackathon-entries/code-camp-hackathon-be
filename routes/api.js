@@ -7,6 +7,7 @@ const workerController = require("../controllers/workerController");
 const jobController = require("../controllers/jobController");
 const chatController = require("../controllers/chatController");
 const aiController = require("../controllers/aiController");
+const denkiController = require("../controllers/denkiController");
 const reviewController = require("../controllers/reviewController");
 const transactionController = require("../controllers/transactionController");
 const { protect, authorize } = require("../middleware/auth");
@@ -76,6 +77,10 @@ router.patch("/jobs/:id/client-confirm", protect, authorize("Client"), jobContro
 
 // AI routes (protected)
 router.post("/ai/analyze", protect, aiController.analyzeProblem);
+
+// Denki AI agent routes (protected)
+router.post("/denki/chat", protect, denkiController.chat);
+router.post("/denki/match", protect, authorize("Client"), denkiController.match);
 
 // Review routes
 router.post("/reviews", protect, authorize("Client"), reviewController.createReview);
