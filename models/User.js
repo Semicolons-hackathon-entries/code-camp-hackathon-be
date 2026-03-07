@@ -43,7 +43,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
-    onboardingComplete: {
+    has_completed: {
       type: Boolean,
       default: false,
     },

@@ -32,7 +32,7 @@ const signup = async ({ email, password, role }) => {
     _id: user._id,
     email: user.email,
     role: user.role,
-    onboardingComplete: user.onboardingComplete ?? false,
+    has_completed: user.has_completed === true,
     token: generateToken(user._id),
   };
 };
@@ -52,9 +52,11 @@ const login = async ({ email, password }) => {
     });
   }
 
+  const isOnboarded = user.has_completed === true;
+
   // For workers, also check if they have a worker profile
   let workerProfile = null;
-  if (user.role === "Worker" && user.onboardingComplete) {
+  if (user.role === "Worker" && isOnboarded) {
     workerProfile = await Worker.findOne({ userId: user._id }).select("_id");
   }
 
@@ -63,7 +65,7 @@ const login = async ({ email, password }) => {
     email: user.email,
     role: user.role,
     name: user.name || null,
-    onboardingComplete: user.onboardingComplete ?? false,
+    has_completed: isOnboarded,
     workerId: workerProfile ? workerProfile._id : null,
     token: generateToken(user._id),
   };
@@ -76,7 +78,7 @@ const getProfile = async (userId) => {
   }
 
   const result = user.toObject();
-  result.onboardingComplete = result.onboardingComplete ?? false;
+  result.has_completed = result.has_completed === true;
 
   // Attach worker profile ID if applicable
   if (user.role === "Worker") {
@@ -93,7 +95,7 @@ const completeOnboarding = async (userId, data) => {
     throw Object.assign(new Error("User not found"), { statusCode: 404 });
   }
 
-  if (user.onboardingComplete) {
+  if (user.has_completed) {
     throw Object.assign(new Error("Onboarding already completed"), {
       statusCode: 400,
     });
@@ -137,7 +139,7 @@ const completeOnboarding = async (userId, data) => {
     });
   }
 
-  user.onboardingComplete = true;
+  user.has_completed = true;
   await user.save();
 
   const result = user.toObject();
