@@ -108,12 +108,7 @@ const completeOnboarding = async (userId, data) => {
 
   user.name = data.name;
   if (data.phone) user.phone = data.phone;
-  if (data.location) {
-    user.location = {
-      type: "Point",
-      coordinates: [data.location.longitude, data.location.latitude],
-    };
-  }
+  if (data.location) user.location = data.location;
 
   // Worker-specific: also create the Worker profile
   let workerProfile = null;
@@ -129,12 +124,6 @@ const completeOnboarding = async (userId, data) => {
       name: data.name,
       skills: data.skills,
       serviceDescription: data.serviceDescription || "",
-      location: data.location
-        ? {
-            type: "Point",
-            coordinates: [data.location.longitude, data.location.latitude],
-          }
-        : undefined,
       isAvailable: true,
     });
   }

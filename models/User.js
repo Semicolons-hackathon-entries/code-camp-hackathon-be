@@ -29,15 +29,9 @@ const userSchema = new mongoose.Schema(
       default: null,
     },
     location: {
-      type: {
-        type: String,
-        enum: ["Point"],
-        default: "Point",
-      },
-      coordinates: {
-        type: [Number], // [longitude, latitude]
-        default: [0, 0],
-      },
+      type: String,
+      trim: true,
+      default: null,
     },
     walletAddress: {
       type: String,
