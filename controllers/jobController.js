@@ -75,9 +75,13 @@ const respondToJob = async (req, res, next) => {
 
     // Notify client in real-time
     const notifyUser = req.app.get("notifyUser");
+    const workerProfile = await Worker.findById(job.workerId._id || job.workerId);
     notifyUser(job.clientId._id || job.clientId, "job_response", {
       jobId: job._id,
       status: job.status,
+      workerName: workerProfile ? workerProfile.name : null,
+      workerRating: workerProfile ? workerProfile.rating : null,
+      workerDescription: workerProfile ? workerProfile.serviceDescription : null,
     });
 
     res.status(200).json({ success: true, data: job });
@@ -228,6 +232,8 @@ const claimJob = async (req, res, next) => {
       jobId: job._id,
       workerId: worker._id,
       workerName: worker.name,
+      workerRating: worker.rating,
+      workerDescription: worker.serviceDescription,
     });
 
     // Notify all workers that job is taken

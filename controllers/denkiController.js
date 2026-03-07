@@ -36,8 +36,12 @@ const chat = async (req, res, next) => {
             best.rating > 0
               ? `, rated ${best.rating} out of 5`
               : "";
+          const descText =
+            best.serviceDescription
+              ? ` Their profile says: ${best.serviceDescription}.`
+              : "";
           result.speechLines.push(
-            `I found ${best.name}${ratingText}. They'd be a great fit for this.`
+            `I found ${best.name}${ratingText}.${descText} Want me to book them?`
           );
         }
       }
@@ -59,6 +63,20 @@ const match = async (req, res, next) => {
     if (!category || !summary) {
       res.status(400);
       throw new Error("Category and summary are required");
+    }
+
+    // Check for duplicate: same client + same worker + same category with active status
+    if (workerId) {
+      const existingJob = await Job.findOne({
+        clientId: req.user._id,
+        workerId,
+        category,
+        status: { $in: ["Pending", "Accepted", "OnTheWay", "Arrived", "InProgress"] },
+      });
+      if (existingJob) {
+        res.status(409);
+        throw new Error("You already have an active request with this worker for this service");
+      }
     }
 
     // If no specific worker was chosen, find the best one by skill
