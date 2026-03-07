@@ -3,17 +3,18 @@ const Worker = require("../models/Worker");
 
 const createJob = async (req, res, next) => {
   try {
-    const { workerId, description, serviceId } = req.body;
+    const { workerId, description, serviceId, price } = req.body;
 
-    if (!workerId || !description) {
+    if (!workerId || !description || price == null) {
       res.status(400);
-      throw new Error("Please provide workerId and description");
+      throw new Error("Please provide workerId, description, and price");
     }
 
     const job = await jobService.createJobRequest(req.user._id, {
       workerId,
       description,
       serviceId,
+      price,
       clientLocation: req.body.clientLocation,
     });
 

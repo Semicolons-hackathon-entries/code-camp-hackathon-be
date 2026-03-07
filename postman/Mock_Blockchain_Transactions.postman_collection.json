@@ -1,0 +1,488 @@
+{
+  "info": {
+    "name": "Mock Blockchain & Transaction History",
+    "description": "End-to-end test: signup/login Client & Worker → onboard → create worker profile → create job with price → accept (triggers escrow) → complete (triggers release) → check transaction history.\n\nRun requests IN ORDER. Each step auto-saves tokens and IDs. If signup returns 'already exists', it auto-falls back to login.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000/api" },
+    { "key": "clientToken", "value": "" },
+    { "key": "workerToken", "value": "" },
+    { "key": "workerId", "value": "" },
+    { "key": "jobId", "value": "" },
+    { "key": "clientEmail", "value": "gab.client@example.com" },
+    { "key": "workerEmail", "value": "gab.electrician@example.com" },
+    { "key": "password", "value": "Test1234!" }
+  ],
+  "item": [
+    {
+      "name": "── SETUP ──",
+      "item": [
+        {
+          "name": "1. Signup Client",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/signup", "host": ["{{baseUrl}}"], "path": ["auth", "signup"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{clientEmail}}\",\n  \"password\": \"{{password}}\",\n  \"role\": \"Client\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.success && res.data && res.data.token) {",
+                  "    pm.collectionVariables.set('clientToken', res.data.token);",
+                  "    pm.test('Client signup succeeded', () => pm.response.to.have.status(201));",
+                  "} else {",
+                  "    // User already exists — will login in next step",
+                  "    pm.test('Client already exists, will login next', () => true);",
+                  "    pm.collectionVariables.set('clientNeedsLogin', 'true');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2. Login Client (fallback)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{clientEmail}}\",\n  \"password\": \"{{password}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "pm.test('Client login succeeded', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(res.data.token).to.be.a('string');",
+                  "});",
+                  "if (res.data && res.data.token) {",
+                  "    pm.collectionVariables.set('clientToken', res.data.token);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3. Signup Worker",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/signup", "host": ["{{baseUrl}}"], "path": ["auth", "signup"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{workerEmail}}\",\n  \"password\": \"{{password}}\",\n  \"role\": \"Worker\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.success && res.data && res.data.token) {",
+                  "    pm.collectionVariables.set('workerToken', res.data.token);",
+                  "    pm.test('Worker signup succeeded', () => pm.response.to.have.status(201));",
+                  "} else {",
+                  "    pm.test('Worker already exists, will login next', () => true);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4. Login Worker (fallback)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{workerEmail}}\",\n  \"password\": \"{{password}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "pm.test('Worker login succeeded', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(res.data.token).to.be.a('string');",
+                  "});",
+                  "if (res.data && res.data.token) {",
+                  "    pm.collectionVariables.set('workerToken', res.data.token);",
+                  "    if (res.data.workerId) {",
+                  "        pm.collectionVariables.set('workerId', res.data.workerId);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5. Onboard Client",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{clientToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/auth/onboarding", "host": ["{{baseUrl}}"], "path": ["auth", "onboarding"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Gab Client\",\n  \"phone\": \"09171234567\",\n  \"location\": \"Manila, PH\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "// Pass whether success or already onboarded",
+                  "pm.test('Client onboarding handled', () => {",
+                  "    pm.expect([200, 400]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6. Onboard Worker",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{workerToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/auth/onboarding", "host": ["{{baseUrl}}"], "path": ["auth", "onboarding"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Gab Electrician\",\n  \"phone\": \"09179876543\",\n  \"location\": \"Makati, PH\",\n  \"skills\": [\"Electrical\", \"Wiring\"],\n  \"serviceDescription\": \"Licensed electrician for residential and commercial work\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "pm.test('Worker onboarding handled', () => {",
+                  "    pm.expect([200, 400]).to.include(pm.response.code);",
+                  "});",
+                  "// Try to grab workerId from response",
+                  "if (res.data && res.data.worker && res.data.worker._id) {",
+                  "    pm.collectionVariables.set('workerId', res.data.worker._id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7. Get Worker Profile (grab workerId)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{workerToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/workers/profile", "host": ["{{baseUrl}}"], "path": ["workers", "profile"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "pm.test('Worker profile retrieved', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "if (res.data && res.data._id) {",
+                  "    pm.collectionVariables.set('workerId', res.data._id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "── JOB + BLOCKCHAIN ──",
+      "item": [
+        {
+          "name": "8. Create Job (Client → Worker, with price)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{clientToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/jobs", "host": ["{{baseUrl}}"], "path": ["jobs"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"workerId\": \"{{workerId}}\",\n  \"description\": \"Fix electrical wiring in kitchen\",\n  \"price\": 500,\n  \"clientLocation\": {\n    \"longitude\": 121.0244,\n    \"latitude\": 14.5547\n  }\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "pm.test('Job created with price', () => {",
+                  "    pm.response.to.have.status(201);",
+                  "    pm.expect(res.data.price).to.eql(500);",
+                  "    pm.expect(res.data.paymentStatus).to.eql('Unpaid');",
+                  "});",
+                  "if (res.data && res.data._id) {",
+                  "    pm.collectionVariables.set('jobId', res.data._id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "9. Accept Job (Worker → triggers escrow)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{workerToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/jobs/{{jobId}}/respond", "host": ["{{baseUrl}}"], "path": ["jobs", "{{jobId}}", "respond"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"accept\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "pm.test('Job accepted & escrowed', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(res.data.status).to.eql('Accepted');",
+                  "    pm.expect(res.data.paymentStatus).to.eql('Escrowed');",
+                  "    pm.expect(res.data.blockchainTxHash).to.be.a('string');",
+                  "    pm.expect(res.data.blockchainTxHash).to.match(/^0x[a-f0-9]{64}$/);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10. Complete Job (Worker → triggers release)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{workerToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/jobs/{{jobId}}/complete", "host": ["{{baseUrl}}"], "path": ["jobs", "{{jobId}}", "complete"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "pm.test('Job completed & payment released', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(res.data.status).to.eql('Completed');",
+                  "    pm.expect(res.data.paymentStatus).to.eql('Released');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11. Verify Job (check hashes on job)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{clientToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/jobs/{{jobId}}", "host": ["{{baseUrl}}"], "path": ["jobs", "{{jobId}}"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "pm.test('Job has blockchain hash and released status', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(res.data.paymentStatus).to.eql('Released');",
+                  "    pm.expect(res.data.blockchainTxHash).to.match(/^0x[a-f0-9]{64}$/);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "── TRANSACTION HISTORY ──",
+      "item": [
+        {
+          "name": "12. Client Transaction History",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{clientToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/transactions", "host": ["{{baseUrl}}"], "path": ["transactions"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "pm.test('Client sees transactions', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(res.transactions).to.be.an('array');",
+                  "    pm.expect(res.transactions.length).to.be.at.least(1);",
+                  "});",
+                  "pm.test('Transaction has correct shape', () => {",
+                  "    const tx = res.transactions[0];",
+                  "    pm.expect(tx).to.have.property('hash');",
+                  "    pm.expect(tx).to.have.property('type');",
+                  "    pm.expect(tx).to.have.property('name');",
+                  "    pm.expect(tx).to.have.property('comment');",
+                  "    pm.expect(tx).to.have.property('rating');",
+                  "    pm.expect(tx).to.have.property('amount');",
+                  "    pm.expect(tx).to.have.property('date');",
+                  "    pm.expect(tx).to.have.property('serviceType');",
+                  "    pm.expect(tx).to.have.property('status');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "13. Worker Transaction History",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{workerToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/transactions", "host": ["{{baseUrl}}"], "path": ["transactions"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "pm.test('Worker sees transactions', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(res.transactions).to.be.an('array');",
+                  "    pm.expect(res.transactions.length).to.be.at.least(1);",
+                  "});",
+                  "pm.test('Worker transaction has amount', () => {",
+                  "    const tx = res.transactions[0];",
+                  "    pm.expect(tx.amount).to.eql(500);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "14. Client History (escrow only filter)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{clientToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/transactions?type=escrow",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions"],
+              "query": [{ "key": "type", "value": "escrow" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "pm.test('Only escrow transactions returned', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "    res.transactions.forEach(tx => {",
+                  "        pm.expect(tx.type).to.eql('escrow');",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "15. Job Transactions (all txs for one job)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{clientToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/transactions/job/{{jobId}}", "host": ["{{baseUrl}}"], "path": ["transactions", "job", "{{jobId}}"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "pm.test('Job has 2 transactions (escrow + release)', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(res.transactions).to.be.an('array');",
+                  "    pm.expect(res.transactions.length).to.eql(2);",
+                  "});",
+                  "pm.test('First is escrow, second is release', () => {",
+                  "    pm.expect(res.transactions[0].type).to.eql('escrow');",
+                  "    pm.expect(res.transactions[1].type).to.eql('release');",
+                  "});",
+                  "pm.test('Both have hashes and amounts', () => {",
+                  "    res.transactions.forEach(tx => {",
+                  "        pm.expect(tx.hash).to.match(/^0x[a-f0-9]{64}$/);",
+                  "        pm.expect(tx.amount).to.eql(500);",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
