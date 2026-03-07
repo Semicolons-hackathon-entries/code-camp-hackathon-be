@@ -104,6 +104,51 @@ const getWorkerById = async (workerId) => {
   return worker;
 };
 
+const findNearestWorker = async (longitude, latitude, skill) => {
+  const query = {
+    isAvailable: true,
+    location: {
+      $nearSphere: {
+        $geometry: {
+          type: "Point",
+          coordinates: [longitude, latitude],
+        },
+      },
+    },
+  };
+
+  if (skill) {
+    query.skills = { $in: [skill] };
+  }
+
+  const worker = await Worker.findOne(query).populate("userId", "email");
+
+  if (!worker) {
+    throw Object.assign(new Error("No available workers found nearby"), {
+      statusCode: 404,
+    });
+  }
+
+  return worker;
+};
+
+const updateLocation = async (userId, longitude, latitude) => {
+  const worker = await Worker.findOne({ userId });
+  if (!worker) {
+    throw Object.assign(new Error("Worker profile not found"), {
+      statusCode: 404,
+    });
+  }
+
+  worker.location = {
+    type: "Point",
+    coordinates: [longitude, latitude],
+  };
+
+  await worker.save();
+  return worker;
+};
+
 module.exports = {
   createWorkerProfile,
   getWorkerProfile,
@@ -111,4 +156,6 @@ module.exports = {
   getNearbyWorkers,
   getAllWorkers,
   getWorkerById,
+  findNearestWorker,
+  updateLocation,
 };

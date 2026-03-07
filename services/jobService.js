@@ -1,5 +1,6 @@
 const Job = require("../models/Job");
 const Worker = require("../models/Worker");
+const workerService = require("./workerService");
 
 const createJobRequest = async (clientId, { workerId, description, serviceId }) => {
   const worker = await Worker.findById(workerId);
@@ -144,6 +145,22 @@ const completeJob = async (userId, jobId) => {
   ]);
 };
 
+const createEmergencyRequest = async (clientId, { longitude, latitude, skill, description }) => {
+  const worker = await workerService.findNearestWorker(longitude, latitude, skill);
+
+  const job = await Job.create({
+    clientId,
+    workerId: worker._id,
+    description: description || `Emergency ${skill || "service"} request`,
+    isEmergency: true,
+  });
+
+  return job.populate([
+    { path: "clientId", select: "email" },
+    { path: "workerId", populate: { path: "userId", select: "email" } },
+  ]);
+};
+
 module.exports = {
   createJobRequest,
   getJobById,
@@ -151,4 +168,5 @@ module.exports = {
   getJobsForWorker,
   respondToJob,
   completeJob,
+  createEmergencyRequest,
 };

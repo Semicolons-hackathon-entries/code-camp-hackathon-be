@@ -22,6 +22,10 @@ const jobSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    isEmergency: {
+      type: Boolean,
+      default: false,
+    },
     status: {
       type: String,
       enum: ["Pending", "Accepted", "Declined", "Completed"],

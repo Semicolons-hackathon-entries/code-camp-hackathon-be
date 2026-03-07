@@ -95,4 +95,26 @@ const getById = async (req, res, next) => {
   }
 };
 
-module.exports = { createProfile, getMyProfile, updateProfile, getNearby, getAll, getById };
+const updateLocation = async (req, res, next) => {
+  try {
+    const { longitude, latitude } = req.body;
+
+    if (longitude === undefined || latitude === undefined) {
+      res.status(400);
+      throw new Error("Please provide longitude and latitude");
+    }
+
+    const worker = await workerService.updateLocation(
+      req.user._id,
+      parseFloat(longitude),
+      parseFloat(latitude)
+    );
+
+    res.status(200).json({ success: true, data: worker });
+  } catch (error) {
+    if (error.statusCode) res.status(error.statusCode);
+    next(error);
+  }
+};
+
+module.exports = { createProfile, getMyProfile, updateProfile, getNearby, getAll, getById, updateLocation };
