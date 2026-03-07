@@ -1,0 +1,410 @@
+{
+  "info": {
+    "name": "Job Acceptance System - Full Flow",
+    "description": "End-to-end test: signup Client & Worker → create worker profile → create job request → view pending requests → accept/decline → complete.\n\nRun requests IN ORDER (top to bottom). Each step auto-saves tokens and IDs to collection variables.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000/api" },
+    { "key": "clientToken", "value": "" },
+    { "key": "workerToken", "value": "" },
+    { "key": "workerId", "value": "" },
+    { "key": "jobId", "value": "" },
+    { "key": "job2Id", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "1. Signup Client",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{baseUrl}}/auth/signup", "host": ["{{baseUrl}}"], "path": ["auth", "signup"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"maria@example.com\",\n  \"password\": \"Test1234!\",\n  \"role\": \"Client\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const res = pm.response.json();",
+              "pm.test('Client signup succeeds', () => {",
+              "    pm.response.to.have.status(201);",
+              "    pm.expect(res.success).to.be.true;",
+              "    pm.expect(res.data.role).to.eql('Client');",
+              "});",
+              "if (res.data && res.data.token) {",
+              "    pm.collectionVariables.set('clientToken', res.data.token);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Signup Worker",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{baseUrl}}/auth/signup", "host": ["{{baseUrl}}"], "path": ["auth", "signup"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"john.electrician@example.com\",\n  \"password\": \"Test1234!\",\n  \"role\": \"Worker\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const res = pm.response.json();",
+              "pm.test('Worker signup succeeds', () => {",
+              "    pm.response.to.have.status(201);",
+              "    pm.expect(res.success).to.be.true;",
+              "    pm.expect(res.data.role).to.eql('Worker');",
+              "});",
+              "if (res.data && res.data.token) {",
+              "    pm.collectionVariables.set('workerToken', res.data.token);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Create Worker Profile",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{workerToken}}" }
+        ],
+        "url": { "raw": "{{baseUrl}}/workers/profile", "host": ["{{baseUrl}}"], "path": ["workers", "profile"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"John the Electrician\",\n  \"skills\": [\"Electrical\", \"Wiring\", \"Solar\"],\n  \"serviceDescription\": \"Professional electrical repair and installation\",\n  \"location\": {\n    \"longitude\": 36.8219,\n    \"latitude\": -1.2921\n  },\n  \"isAvailable\": true\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const res = pm.response.json();",
+              "pm.test('Worker profile created', () => {",
+              "    pm.response.to.have.status(201);",
+              "    pm.expect(res.success).to.be.true;",
+              "    pm.expect(res.data.name).to.eql('John the Electrician');",
+              "    pm.expect(res.data.skills).to.include('Electrical');",
+              "});",
+              "if (res.data && res.data._id) {",
+              "    pm.collectionVariables.set('workerId', res.data._id);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Client Creates Job Request (with location)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{clientToken}}" }
+        ],
+        "url": { "raw": "{{baseUrl}}/jobs", "host": ["{{baseUrl}}"], "path": ["jobs"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"workerId\": \"{{workerId}}\",\n  \"description\": \"Kitchen outlet stopped working, need urgent repair\",\n  \"clientLocation\": {\n    \"longitude\": 36.8350,\n    \"latitude\": -1.2800\n  }\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const res = pm.response.json();",
+              "pm.test('Job request created with Pending status', () => {",
+              "    pm.response.to.have.status(201);",
+              "    pm.expect(res.success).to.be.true;",
+              "    pm.expect(res.data.status).to.eql('Pending');",
+              "});",
+              "pm.test('Client location stored on job', () => {",
+              "    pm.expect(res.data.clientLocation).to.exist;",
+              "    pm.expect(res.data.clientLocation.type).to.eql('Point');",
+              "    pm.expect(res.data.clientLocation.coordinates).to.be.an('array');",
+              "});",
+              "if (res.data && res.data._id) {",
+              "    pm.collectionVariables.set('jobId', res.data._id);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Worker Views Pending Requests (notification inbox)",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{workerToken}}" }
+        ],
+        "url": { "raw": "{{baseUrl}}/jobs/requests", "host": ["{{baseUrl}}"], "path": ["jobs", "requests"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const res = pm.response.json();",
+              "pm.test('Returns pending requests with notification shape', () => {",
+              "    pm.response.to.have.status(200);",
+              "    pm.expect(res.success).to.be.true;",
+              "    pm.expect(res.count).to.be.at.least(1);",
+              "});",
+              "pm.test('Each request has client, service/description, distance', () => {",
+              "    const job = res.data[0];",
+              "    pm.expect(job).to.have.property('jobId');",
+              "    pm.expect(job).to.have.property('client');",
+              "    pm.expect(job.client).to.have.property('email');",
+              "    pm.expect(job).to.have.property('description');",
+              "    pm.expect(job).to.have.property('distance');",
+              "    pm.expect(job.distance).to.be.a('number');",
+              "    pm.expect(job).to.have.property('createdAt');",
+              "});",
+              "pm.test('Distance is calculated in km (roughly 1-2km for test coords)', () => {",
+              "    const job = res.data[0];",
+              "    pm.expect(job.distance).to.be.above(0);",
+              "    pm.expect(job.distance).to.be.below(10);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Worker ACCEPTS the Job",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{workerToken}}" }
+        ],
+        "url": { "raw": "{{baseUrl}}/jobs/{{jobId}}/respond", "host": ["{{baseUrl}}"], "path": ["jobs", "{{jobId}}", "respond"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"action\": \"accept\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const res = pm.response.json();",
+              "pm.test('Job accepted successfully', () => {",
+              "    pm.response.to.have.status(200);",
+              "    pm.expect(res.success).to.be.true;",
+              "    pm.expect(res.data.status).to.eql('Accepted');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Verify: Cannot accept already-accepted job (400)",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{workerToken}}" }
+        ],
+        "url": { "raw": "{{baseUrl}}/jobs/{{jobId}}/respond", "host": ["{{baseUrl}}"], "path": ["jobs", "{{jobId}}", "respond"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"action\": \"accept\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Cannot accept already-accepted job', () => {",
+              "    pm.response.to.have.status(400);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Worker COMPLETES the Job",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{workerToken}}" }
+        ],
+        "url": { "raw": "{{baseUrl}}/jobs/{{jobId}}/complete", "host": ["{{baseUrl}}"], "path": ["jobs", "{{jobId}}", "complete"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const res = pm.response.json();",
+              "pm.test('Job completed successfully', () => {",
+              "    pm.response.to.have.status(200);",
+              "    pm.expect(res.success).to.be.true;",
+              "    pm.expect(res.data.status).to.eql('Completed');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "9. Client Creates 2nd Job (for decline test)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{clientToken}}" }
+        ],
+        "url": { "raw": "{{baseUrl}}/jobs", "host": ["{{baseUrl}}"], "path": ["jobs"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"workerId\": \"{{workerId}}\",\n  \"description\": \"Bathroom light flickering\",\n  \"clientLocation\": {\n    \"longitude\": 36.8100,\n    \"latitude\": -1.3000\n  }\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const res = pm.response.json();",
+              "pm.test('2nd job created', () => {",
+              "    pm.response.to.have.status(201);",
+              "    pm.expect(res.data.status).to.eql('Pending');",
+              "});",
+              "if (res.data && res.data._id) {",
+              "    pm.collectionVariables.set('job2Id', res.data._id);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10. Worker DECLINES the 2nd Job",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{workerToken}}" }
+        ],
+        "url": { "raw": "{{baseUrl}}/jobs/{{job2Id}}/respond", "host": ["{{baseUrl}}"], "path": ["jobs", "{{job2Id}}", "respond"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"action\": \"decline\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const res = pm.response.json();",
+              "pm.test('Job declined successfully', () => {",
+              "    pm.response.to.have.status(200);",
+              "    pm.expect(res.success).to.be.true;",
+              "    pm.expect(res.data.status).to.eql('Declined');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "11. Verify: Pending requests inbox is now empty",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{workerToken}}" }
+        ],
+        "url": { "raw": "{{baseUrl}}/jobs/requests", "host": ["{{baseUrl}}"], "path": ["jobs", "requests"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const res = pm.response.json();",
+              "pm.test('No more pending requests', () => {",
+              "    pm.response.to.have.status(200);",
+              "    pm.expect(res.count).to.eql(0);",
+              "    pm.expect(res.data).to.be.an('array').that.is.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "12. Verify: Worker sees all jobs in history",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{workerToken}}" }
+        ],
+        "url": { "raw": "{{baseUrl}}/jobs/worker", "host": ["{{baseUrl}}"], "path": ["jobs", "worker"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const res = pm.response.json();",
+              "pm.test('Worker sees both jobs', () => {",
+              "    pm.response.to.have.status(200);",
+              "    pm.expect(res.count).to.eql(2);",
+              "});",
+              "pm.test('One Completed, one Declined', () => {",
+              "    const statuses = res.data.map(j => j.status).sort();",
+              "    pm.expect(statuses).to.deep.eql(['Completed', 'Declined']);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "13. Verify: Client sees both jobs",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{clientToken}}" }
+        ],
+        "url": { "raw": "{{baseUrl}}/jobs/client", "host": ["{{baseUrl}}"], "path": ["jobs", "client"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const res = pm.response.json();",
+              "pm.test('Client sees both jobs', () => {",
+              "    pm.response.to.have.status(200);",
+              "    pm.expect(res.count).to.eql(2);",
+              "});"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

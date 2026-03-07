@@ -14,6 +14,7 @@ const createJob = async (req, res, next) => {
       workerId,
       description,
       serviceId,
+      clientLocation: req.body.clientLocation,
     });
 
     // Notify worker in real-time
@@ -132,4 +133,14 @@ const emergencyRequest = async (req, res, next) => {
   }
 };
 
-module.exports = { createJob, getJob, getMyClientJobs, getMyWorkerJobs, respondToJob, completeJob, emergencyRequest };
+const getPendingRequests = async (req, res, next) => {
+  try {
+    const jobs = await jobService.getPendingJobRequests(req.user._id);
+    res.status(200).json({ success: true, count: jobs.length, data: jobs });
+  } catch (error) {
+    if (error.statusCode) res.status(error.statusCode);
+    next(error);
+  }
+};
+
+module.exports = { createJob, getJob, getMyClientJobs, getMyWorkerJobs, respondToJob, completeJob, emergencyRequest, getPendingRequests };

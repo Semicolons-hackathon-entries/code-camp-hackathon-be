@@ -1,8 +1,9 @@
 const Job = require("../models/Job");
 const Worker = require("../models/Worker");
+const Service = require("../models/Service");
 const workerService = require("./workerService");
 
-const createJobRequest = async (clientId, { workerId, description, serviceId }) => {
+const createJobRequest = async (clientId, { workerId, description, serviceId, clientLocation }) => {
   const worker = await Worker.findById(workerId);
   if (!worker) {
     throw Object.assign(new Error("Worker not found"), { statusCode: 404 });
@@ -14,12 +15,21 @@ const createJobRequest = async (clientId, { workerId, description, serviceId }) 
     });
   }
 
-  const job = await Job.create({
+  const jobData = {
     clientId,
     workerId,
     description,
     serviceId: serviceId || null,
-  });
+  };
+
+  if (clientLocation && clientLocation.longitude != null && clientLocation.latitude != null) {
+    jobData.clientLocation = {
+      type: "Point",
+      coordinates: [clientLocation.longitude, clientLocation.latitude],
+    };
+  }
+
+  const job = await Job.create(jobData);
 
   return job.populate([
     { path: "clientId", select: "email" },
@@ -161,6 +171,60 @@ const createEmergencyRequest = async (clientId, { longitude, latitude, skill, de
   ]);
 };
 
+// Haversine distance in km between two [lng, lat] coordinate pairs
+const haversineDistance = (coords1, coords2) => {
+  const toRad = (deg) => (deg * Math.PI) / 180;
+  const [lng1, lat1] = coords1;
+  const [lng2, lat2] = coords2;
+  const R = 6371; // Earth radius in km
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
+
+const getPendingJobRequests = async (userId) => {
+  const worker = await Worker.findOne({ userId });
+  if (!worker) {
+    throw Object.assign(new Error("Worker profile not found"), {
+      statusCode: 404,
+    });
+  }
+
+  const jobs = await Job.find({ workerId: worker._id, status: "Pending" })
+    .populate("clientId", "email")
+    .populate("serviceId", "title category price")
+    .sort({ createdAt: -1 });
+
+  const workerCoords = worker.location && worker.location.coordinates;
+
+  return jobs.map((job) => {
+    const jobCoords = job.clientLocation && job.clientLocation.coordinates;
+    let distance = null;
+    if (
+      workerCoords &&
+      workerCoords[0] !== 0 &&
+      workerCoords[1] !== 0 &&
+      jobCoords &&
+      jobCoords.length === 2
+    ) {
+      distance = Math.round(haversineDistance(workerCoords, jobCoords) * 10) / 10;
+    }
+
+    return {
+      jobId: job._id,
+      client: job.clientId,
+      service: job.serviceId,
+      description: job.description,
+      isEmergency: job.isEmergency,
+      distance,
+      createdAt: job.createdAt,
+    };
+  });
+};
+
 module.exports = {
   createJobRequest,
   getJobById,
@@ -169,4 +233,5 @@ module.exports = {
   respondToJob,
   completeJob,
   createEmergencyRequest,
+  getPendingJobRequests,
 };

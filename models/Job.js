@@ -22,6 +22,17 @@ const jobSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    clientLocation: {
+      type: {
+        type: String,
+        enum: ["Point"],
+        default: "Point",
+      },
+      coordinates: {
+        type: [Number], // [longitude, latitude]
+        default: undefined,
+      },
+    },
     isEmergency: {
       type: Boolean,
       default: false,
