@@ -19,8 +19,8 @@ const validateJobParticipant = async (jobId, userId) => {
     });
   }
 
-  if (["Declined", "Completed", "ClientConfirmed"].includes(job.status)) {
-    throw Object.assign(new Error("Chat is only available for active jobs"), {
+  if (job.status === "Declined") {
+    throw Object.assign(new Error("Chat is not available for declined jobs"), {
       statusCode: 400,
     });
   }
