@@ -276,7 +276,7 @@ const updateJobStatus = async (req, res, next) => {
       Accepted: ["OnTheWay"],
       OnTheWay: ["Arrived"],
       Arrived: ["InProgress"],
-      InProgress: ["WorkDone"],
+      ClientConfirmed: ["Completed"],
     };
 
     const allowed = validTransitions[job.status];
@@ -337,7 +337,7 @@ const uploadProof = async (req, res, next) => {
   }
 };
 
-// Client confirms job done
+// Client confirms job done (only at InProgress stage)
 const clientConfirmJob = async (req, res, next) => {
   try {
     const Job = require("../models/Job");
@@ -349,6 +349,10 @@ const clientConfirmJob = async (req, res, next) => {
     if (job.clientId.toString() !== req.user._id.toString()) {
       res.status(403);
       throw new Error("Not authorized");
+    }
+    if (job.status !== "InProgress") {
+      res.status(400);
+      throw new Error("Job can only be confirmed when work is in progress");
     }
 
     job.status = "ClientConfirmed";
@@ -381,8 +385,7 @@ const cancelJob = async (req, res, next) => {
       throw new Error("Not authorized");
     }
 
-    const cancellable = ["Pending", "Accepted"];
-    if (!cancellable.includes(job.status)) {
+    if (job.status !== "Pending") {
       res.status(400);
       throw new Error("This job can no longer be cancelled");
     }
