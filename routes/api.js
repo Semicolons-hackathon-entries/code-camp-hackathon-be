@@ -55,6 +55,7 @@ router.post("/jobs", protect, authorize("Client"), jobController.createJob);
 router.post("/jobs/emergency", protect, authorize("Client"), jobController.emergencyRequest);
 router.get("/jobs/client", protect, authorize("Client"), jobController.getMyClientJobs);
 router.get("/jobs/worker", protect, authorize("Worker"), jobController.getMyWorkerJobs);
+router.get("/jobs/requests", protect, authorize("Worker"), jobController.getPendingRequests);
 router.get("/jobs/:id", protect, jobController.getJob);
 router.patch("/jobs/:id/respond", protect, authorize("Worker"), jobController.respondToJob);
 router.patch("/jobs/:id/complete", protect, authorize("Worker"), jobController.completeJob);
