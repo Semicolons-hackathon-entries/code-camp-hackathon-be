@@ -15,11 +15,16 @@ const jobSchema = new mongoose.Schema(
     serviceId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Service",
+      default: null,
+    },
+    description: {
+      type: String,
       required: true,
+      trim: true,
     },
     status: {
       type: String,
-      enum: ["Pending", "Accepted", "Completed"],
+      enum: ["Pending", "Accepted", "Declined", "Completed"],
       default: "Pending",
     },
     paymentStatus: {

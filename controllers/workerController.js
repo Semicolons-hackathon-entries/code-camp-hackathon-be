@@ -85,4 +85,14 @@ const getAll = async (req, res, next) => {
   }
 };
 
-module.exports = { createProfile, getMyProfile, updateProfile, getNearby, getAll };
+const getById = async (req, res, next) => {
+  try {
+    const worker = await workerService.getWorkerById(req.params.id);
+    res.status(200).json({ success: true, data: worker });
+  } catch (error) {
+    if (error.statusCode) res.status(error.statusCode);
+    next(error);
+  }
+};
+
+module.exports = { createProfile, getMyProfile, updateProfile, getNearby, getAll, getById };

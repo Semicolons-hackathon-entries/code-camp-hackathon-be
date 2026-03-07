@@ -93,10 +93,22 @@ const getAllWorkers = async (filters = {}) => {
   return workers;
 };
 
+const getWorkerById = async (workerId) => {
+  const worker = await Worker.findById(workerId).populate(
+    "userId",
+    "email role"
+  );
+  if (!worker) {
+    throw Object.assign(new Error("Worker not found"), { statusCode: 404 });
+  }
+  return worker;
+};
+
 module.exports = {
   createWorkerProfile,
   getWorkerProfile,
   updateWorkerProfile,
   getNearbyWorkers,
   getAllWorkers,
+  getWorkerById,
 };
