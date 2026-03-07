@@ -1,4 +1,8 @@
+const mongoose = require("mongoose");
 const Worker = require("../models/Worker");
+const Review = require("../models/Review");
+const Job = require("../models/Job");
+const Service = require("../models/Service");
 
 const createWorkerProfile = async (userId, data) => {
   const existing = await Worker.findOne({ userId });
@@ -94,6 +98,10 @@ const getAllWorkers = async (filters = {}) => {
 };
 
 const getWorkerById = async (workerId) => {
+  if (!mongoose.Types.ObjectId.isValid(workerId)) {
+    throw Object.assign(new Error("Invalid worker ID"), { statusCode: 400 });
+  }
+
   const worker = await Worker.findById(workerId).populate(
     "userId",
     "email role"
@@ -149,6 +157,63 @@ const updateLocation = async (userId, longitude, latitude) => {
   return worker;
 };
 
+const getWorkerReputationProfile = async (workerId) => {
+  if (!mongoose.Types.ObjectId.isValid(workerId)) {
+    throw Object.assign(new Error("Invalid worker ID"), { statusCode: 400 });
+  }
+
+  const worker = await Worker.findById(workerId).populate(
+    "userId",
+    "email role"
+  );
+  if (!worker) {
+    throw Object.assign(new Error("Worker not found"), { statusCode: 404 });
+  }
+
+  const [reviewStats, completedJobs, services] = await Promise.all([
+    Review.aggregate([
+      { $match: { workerId: worker._id } },
+      {
+        $group: {
+          _id: null,
+          averageRating: { $avg: "$rating" },
+          totalReviews: { $sum: 1 },
+        },
+      },
+    ]),
+    Job.countDocuments({ workerId: worker._id, status: "Completed" }),
+    Service.find({ workerId: worker._id }).select(
+      "category title description price"
+    ),
+  ]);
+
+  const averageRating =
+    reviewStats.length > 0
+      ? Math.round(reviewStats[0].averageRating * 10) / 10
+      : 0;
+  const totalReviews =
+    reviewStats.length > 0 ? reviewStats[0].totalReviews : 0;
+
+  if (worker.rating !== averageRating) {
+    worker.rating = averageRating;
+    await worker.save();
+  }
+
+  return {
+    _id: worker._id,
+    name: worker.name,
+    skills: worker.skills,
+    serviceDescription: worker.serviceDescription,
+    location: worker.location,
+    rating: averageRating,
+    totalReviews,
+    completedJobs,
+    services,
+    isAvailable: worker.isAvailable,
+    user: worker.userId,
+  };
+};
+
 module.exports = {
   createWorkerProfile,
   getWorkerProfile,
@@ -158,4 +223,5 @@ module.exports = {
   getWorkerById,
   findNearestWorker,
   updateLocation,
+  getWorkerReputationProfile,
 };
