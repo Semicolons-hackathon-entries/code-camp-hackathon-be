@@ -367,6 +367,49 @@ const clientConfirmJob = async (req, res, next) => {
   }
 };
 
+// Client cancels a job request
+const cancelJob = async (req, res, next) => {
+  try {
+    const Job = require("../models/Job");
+    const job = await Job.findById(req.params.id);
+    if (!job) {
+      res.status(404);
+      throw new Error("Job not found");
+    }
+    if (job.clientId.toString() !== req.user._id.toString()) {
+      res.status(403);
+      throw new Error("Not authorized");
+    }
+
+    const cancellable = ["Pending", "Accepted"];
+    if (!cancellable.includes(job.status)) {
+      res.status(400);
+      throw new Error("This job can no longer be cancelled");
+    }
+
+    const previousWorkerId = job.workerId;
+    job.status = "Cancelled";
+    await job.save();
+
+    // Notify worker if one was assigned
+    if (previousWorkerId) {
+      const worker = await Worker.findById(previousWorkerId);
+      if (worker) {
+        const notifyUser = req.app.get("notifyUser");
+        notifyUser(worker.userId, "job_cancelled", {
+          jobId: job._id,
+          title: job.title,
+        });
+      }
+    }
+
+    res.status(200).json({ success: true, data: job });
+  } catch (error) {
+    if (error.statusCode) res.status(error.statusCode);
+    next(error);
+  }
+};
+
 // Get all available jobs (for worker marketplace - unassigned pending jobs)
 const getAvailableJobs = async (req, res, next) => {
   try {
@@ -383,5 +426,5 @@ const getAvailableJobs = async (req, res, next) => {
 module.exports = {
   createJob, getJob, getMyClientJobs, getMyWorkerJobs, respondToJob, completeJob,
   emergencyRequest, getPendingRequests, createMatchmakingJob, claimJob,
-  updateJobStatus, uploadProof, clientConfirmJob, getAvailableJobs,
+  updateJobStatus, uploadProof, clientConfirmJob, getAvailableJobs, cancelJob,
 };

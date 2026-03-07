@@ -115,9 +115,36 @@ async function chat(conversationHistory) {
   }
 }
 
-async function findMatchingWorkers(category, excludeIds = []) {
+const CATEGORY_SYNONYMS = {
+  electrician: ["electrician", "electrical", "wiring", "circuit"],
+  plumber: ["plumber", "plumbing", "pipes", "drain"],
+  painter: ["painter", "painting", "paint"],
+  handyman: ["handyman", "handy", "fix", "repair"],
+  cleaning: ["cleaning", "cleaner", "janitor", "maid"],
+  rental: ["rental", "rent"],
+  "home repair": ["home repair", "repair", "maintenance"],
+  moving: ["moving", "mover", "relocation"],
+  construction: ["construction", "builder", "carpenter", "carpentry", "building", "renovation", "remodel"],
+  laundry: ["laundry", "washing", "ironing"],
+  catering: ["catering", "caterer", "cook", "chef", "food"],
+  tutoring: ["tutoring", "tutor", "teacher", "teaching", "instructor"],
+};
+
+function skillMatchesCategory(skill, category) {
+  const skillLower = skill.toLowerCase();
   const categoryLower = category.toLowerCase();
 
+  // Direct substring match
+  if (skillLower.includes(categoryLower) || categoryLower.includes(skillLower)) {
+    return true;
+  }
+
+  // Synonym match: check if the skill matches any synonym for the category
+  const synonyms = CATEGORY_SYNONYMS[categoryLower] || [];
+  return synonyms.some((syn) => skillLower.includes(syn) || syn.includes(skillLower));
+}
+
+async function findMatchingWorkers(category, excludeIds = []) {
   const query = { isAvailable: true };
   if (excludeIds.length > 0) {
     query._id = { $nin: excludeIds };
@@ -126,15 +153,9 @@ async function findMatchingWorkers(category, excludeIds = []) {
   const workers = await Worker.find(query)
     .populate("userId", "email");
 
-  // Filter by skill match
+  // Filter by skill match using synonym-aware matching
   const matched = workers.filter((w) =>
-    w.skills.some((skill) => {
-      const skillLower = skill.toLowerCase();
-      return (
-        skillLower.includes(categoryLower) ||
-        categoryLower.includes(skillLower)
-      );
-    })
+    w.skills.some((skill) => skillMatchesCategory(skill, category))
   );
 
   // Sort skill-matched workers by rating (best first)

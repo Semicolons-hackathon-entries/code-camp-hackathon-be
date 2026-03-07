@@ -64,7 +64,7 @@ const jobSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["Pending", "Accepted", "Declined", "OnTheWay", "Arrived", "InProgress", "WorkDone", "ClientConfirmed", "Completed"],
+      enum: ["Pending", "Accepted", "Declined", "Cancelled", "OnTheWay", "Arrived", "InProgress", "WorkDone", "ClientConfirmed", "Completed"],
       default: "Pending",
     },
     paymentStatus: {
