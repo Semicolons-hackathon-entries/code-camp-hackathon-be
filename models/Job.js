@@ -10,7 +10,7 @@ const jobSchema = new mongoose.Schema(
     workerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Worker",
-      required: true,
+      default: null,
     },
     serviceId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -37,9 +37,29 @@ const jobSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    title: {
+      type: String,
+      trim: true,
+    },
+    category: {
+      type: String,
+      trim: true,
+    },
+    aiSummary: {
+      type: String,
+      trim: true,
+    },
+    workerProofPhoto: {
+      type: String,
+      default: null,
+    },
+    clientProofPhoto: {
+      type: String,
+      default: null,
+    },
     status: {
       type: String,
-      enum: ["Pending", "Accepted", "Declined", "Completed"],
+      enum: ["Pending", "Accepted", "Declined", "OnTheWay", "Arrived", "InProgress", "WorkDone", "ClientConfirmed", "Completed"],
       default: "Pending",
     },
     paymentStatus: {
