@@ -2,8 +2,9 @@ const Job = require("../models/Job");
 const Worker = require("../models/Worker");
 const Service = require("../models/Service");
 const workerService = require("./workerService");
+const blockchainService = require("./blockchainService");
 
-const createJobRequest = async (clientId, { workerId, description, serviceId, clientLocation }) => {
+const createJobRequest = async (clientId, { workerId, description, serviceId, clientLocation, price }) => {
   const worker = await Worker.findById(workerId);
   if (!worker) {
     throw Object.assign(new Error("Worker not found"), { statusCode: 404 });
@@ -19,6 +20,7 @@ const createJobRequest = async (clientId, { workerId, description, serviceId, cl
     clientId,
     workerId,
     description,
+    price,
     serviceId: serviceId || null,
   };
 
@@ -105,15 +107,16 @@ const respondToJob = async (userId, jobId, action) => {
 
   if (action === "accept") {
     job.status = "Accepted";
+    await job.save();
+    await blockchainService.escrowPayment(job);
   } else if (action === "decline") {
     job.status = "Declined";
+    await job.save();
   } else {
     throw Object.assign(new Error("Action must be 'accept' or 'decline'"), {
       statusCode: 400,
     });
   }
-
-  await job.save();
 
   return job.populate([
     { path: "clientId", select: "email" },
@@ -148,6 +151,7 @@ const completeJob = async (userId, jobId) => {
 
   job.status = "Completed";
   await job.save();
+  await blockchainService.releasePayment(job);
 
   return job.populate([
     { path: "clientId", select: "email" },

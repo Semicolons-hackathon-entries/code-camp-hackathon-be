@@ -22,6 +22,11 @@ const jobSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    price: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
     clientLocation: {
       type: {
         type: String,

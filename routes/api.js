@@ -8,6 +8,7 @@ const jobController = require("../controllers/jobController");
 const chatController = require("../controllers/chatController");
 const aiController = require("../controllers/aiController");
 const reviewController = require("../controllers/reviewController");
+const transactionController = require("../controllers/transactionController");
 const { protect, authorize } = require("../middleware/auth");
 
 // Health check
@@ -85,5 +86,9 @@ router.post("/chat/:jobId/messages", protect, chatController.sendMessage);
 router.get("/chat/:jobId/messages", protect, chatController.getMessages);
 router.patch("/chat/:jobId/read", protect, chatController.markAsRead);
 router.get("/chat/unread", protect, chatController.getUnreadCount);
+
+// Transaction routes (protected)
+router.get("/transactions", protect, transactionController.getMyTransactions);
+router.get("/transactions/job/:jobId", protect, transactionController.getJobTransactions);
 
 module.exports = router;
