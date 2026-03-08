@@ -71,7 +71,7 @@ router.patch("/jobs/:id/complete", protect, authorize("Worker"), jobController.c
 router.post("/jobs/matchmaking", protect, authorize("Client"), jobController.createMatchmakingJob);
 router.get("/jobs/available", protect, authorize("Worker"), jobController.getAvailableJobs);
 router.patch("/jobs/:id/claim", protect, authorize("Worker"), jobController.claimJob);
-router.patch("/jobs/:id/status", protect, authorize("Worker"), jobController.updateJobStatus);
+router.patch("/jobs/:id/status", protect, authorize("Worker", "Client"), jobController.updateJobStatus);
 router.patch("/jobs/:id/proof", protect, jobController.uploadProof);
 router.patch("/jobs/:id/client-confirm", protect, authorize("Client"), jobController.clientConfirmJob);
 router.patch("/jobs/:id/cancel", protect, authorize("Client"), jobController.cancelJob);

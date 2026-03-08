@@ -252,20 +252,75 @@ const claimJob = async (req, res, next) => {
 };
 
 // Update job status (worker side: OnTheWay, Arrived, InProgress, WorkDone)
+// Also handles client-side escrow payment status updates
 const updateJobStatus = async (req, res, next) => {
   try {
     const { status } = req.body;
     const Job = require("../models/Job");
-    const worker = await Worker.findOne({ userId: req.user._id });
-    if (!worker) {
-      res.status(404);
-      throw new Error("Worker profile not found");
-    }
+    const blockchainService = require("../services/blockchainService");
 
     const job = await Job.findById(req.params.id);
     if (!job) {
       res.status(404);
       throw new Error("Job not found");
+    }
+
+    const isClient = req.user.role === "Client";
+
+    if (isClient) {
+      // Client can only update escrow-related payment statuses
+      if (job.clientId.toString() !== req.user._id.toString()) {
+        res.status(403);
+        throw new Error("Not authorized");
+      }
+
+      if (status === "Escrowed") {
+        if (job.paymentStatus === "Escrowed") {
+          res.status(400);
+          throw new Error("Payment is already escrowed");
+        }
+        if (job.paymentStatus === "Released") {
+          res.status(400);
+          throw new Error("Payment has already been released");
+        }
+        const transaction = await blockchainService.escrowPayment(job);
+
+        const notifyUser = req.app.get("notifyUser");
+        if (job.workerId) {
+          const worker = await Worker.findById(job.workerId);
+          if (worker) {
+            notifyUser(worker.userId, "payment_escrowed", { jobId: job._id });
+          }
+        }
+
+        return res.status(200).json({ success: true, data: { job, transaction } });
+      } else if (status === "Released") {
+        if (job.paymentStatus !== "Escrowed") {
+          res.status(400);
+          throw new Error("Payment must be escrowed before it can be released");
+        }
+        const transaction = await blockchainService.releasePayment(job);
+
+        const notifyUser = req.app.get("notifyUser");
+        if (job.workerId) {
+          const worker = await Worker.findById(job.workerId);
+          if (worker) {
+            notifyUser(worker.userId, "payment_released", { jobId: job._id });
+          }
+        }
+
+        return res.status(200).json({ success: true, data: { job, transaction } });
+      } else {
+        res.status(400);
+        throw new Error("Clients can only update escrow status (Escrowed or Released)");
+      }
+    }
+
+    // Worker flow
+    const worker = await Worker.findOne({ userId: req.user._id });
+    if (!worker) {
+      res.status(404);
+      throw new Error("Worker profile not found");
     }
     if (job.workerId.toString() !== worker._id.toString()) {
       res.status(403);
