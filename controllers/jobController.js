@@ -5,9 +5,9 @@ const createJob = async (req, res, next) => {
   try {
     const { workerId, description, serviceId, price } = req.body;
 
-    if (!workerId || !description || price == null) {
+    if (!workerId || !description) {
       res.status(400);
-      throw new Error("Please provide workerId, description, and price");
+      throw new Error("Please provide workerId and description");
     }
 
     const job = await jobService.createJobRequest(req.user._id, {
