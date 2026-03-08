@@ -24,8 +24,7 @@ const jobSchema = new mongoose.Schema(
     },
     price: {
       type: Number,
-      required: false,
-      default: 0,
+      required: true,
       min: 0,
     },
     clientLocation: {

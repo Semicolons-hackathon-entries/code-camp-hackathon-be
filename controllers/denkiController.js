@@ -99,6 +99,7 @@ const match = async (req, res, next) => {
       description: summary,
       title: `${category} Service Request`,
       category,
+      price: 0,
       isEmergency: urgency === "high",
       aiSummary: summary,
     };
