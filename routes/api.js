@@ -75,6 +75,8 @@ router.patch("/jobs/:id/status", protect, authorize("Worker"), jobController.upd
 router.patch("/jobs/:id/proof", protect, jobController.uploadProof);
 router.patch("/jobs/:id/client-confirm", protect, authorize("Client"), jobController.clientConfirmJob);
 router.patch("/jobs/:id/cancel", protect, authorize("Client"), jobController.cancelJob);
+router.patch("/jobs/:id/escrow", protect, authorize("Client"), transactionController.escrowPayment);
+router.patch("/jobs/:id/release", protect, authorize("Client"), transactionController.releasePayment);
 
 // AI routes (protected)
 router.post("/ai/analyze", protect, aiController.analyzeProblem);
